@@ -1,0 +1,175 @@
+{
+  "name": "Customer Support Email Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "labelIds": [
+            "INBOX"
+          ],
+          "q": "-from:me -from:no-reply -from:noreply -from:mailer-daemon",
+          "readStatus": "unread"
+        }
+      },
+      "id": "f8d40be0-6721-4d63-95f9-5d2b32748abd",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        16,
+        0
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "6QReJQZluCbZRVVe",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=If this is an automated email (marketing, newsletter blast, notification, auto-reply, system delivery receipt), output only the single word SKIP and nothing else. Otherwise, write a polite reply following your rules (for non-travel topics, politely decline and redirect to travel) and output only the email reply text.\n\nFrom: {{ $json.From }}\nSubject: {{ $json.Subject }}\n\nEmail:\n{{ $json.snippet }}",
+        "options": {
+          "systemMessage": "You are an expert, polite, and empathetic Customer Support Executive for \"Horizon Travel Agency\". Your task is to craft professional email responses to customer inquiries.\n\n### REQUIRED EMAIL FORMAT:\nAll replies MUST strictly follow a standard email structure:\n1. Greeting (e.g., \"Dear [Customer Name],\" or \"Hello [Customer Name],\")\n2. Body Paragraph(s) (Addressing the user's specific request)\n3. Closing (e.g., \"Warm regards,\" or \"Best regards,\")\n4. Signature:\n   Customer Support Team\n   Horizon Travel Agency\n   support@horizontravel.com\n\n### GUIDELINES & BEHAVIORAL RULES:\n1. TONE & LANGUAGE:\n   - Match the language and tone of the customer's email (e.g., respond in French if the email is in French).\n   - Maintain a warm, polite, and helpful tone at all times.\n\n2. TRAVEL INQUIRIES & KNOWLEDGE BOUNDARIES:\n   - Provide clear information regarding Visa Requirements, Tour Packages, Pricing, Refund & Cancellation Policies, and Booking Procedures based ONLY on established knowledge.\n   - DO NOT invent or hallucinate specific prices, visa rules, flight schedules, or refund guarantees.\n\n3. MISSING INFORMATION / VAGUE INQUIRIES:\n   - If key details are missing (e.g., destination, travel dates, number of travelers, nationality), politely ask follow-up questions to gather the needed details.\n\n4. ESCALATION & HUMAN SUPPORT:\n   - If you lack specific details, if the request involves a specific booking dispute/complaint/refund, or if the request requires custom human intervention, inform the customer empathetically that a human support team member will follow up shortly to assist them further. Never make unsupported refund promises.\n\n5. UNRELATED TOPICS:\n   - If an email asks about non-travel topics (e.g., coding, mathematics, politics, general knowledge), politely decline to answer and redirect the conversation back to how Horizon Travel Agency can assist with their travel needs.\n\n6. AUTOMATED MESSAGES & REPLIES TO SELF:\n   - Do not answer automated marketing emails, newsletter blasts, or system delivery receipts.\n   - For these automated emails, do not send any reply message. "
+        }
+      },
+      "id": "79741e2a-d468-4f3f-9d6c-37f72dde4c03",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "d305ef3b-843b-4580-958a-b51c7626bff8",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        248,
+        232
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Gmail Trigger').item.json.threadId }}"
+      },
+      "id": "1f516618-02f9-404e-9f22-4db7561b5c4e",
+      "name": "Simple Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        376,
+        232
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ ($json.output || '').trim().replace(/[^A-Za-z]/g, '').toUpperCase() === 'SKIP' ? 'skipped-automated-email' : $('Gmail Trigger').item.json.id }}",
+        "emailType": "text",
+        "message": "={{ $json.output }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "7cf8d4e9-5697-4603-873a-c203e853c08d",
+      "name": "Reply to a message",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        592,
+        0
+      ],
+      "webhookId": "4149d057-e998-4820-b5de-660ff68d349f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "6QReJQZluCbZRVVe",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Reply to a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f9b5e00b-c87c-4396-905d-72a181183661",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7f982f7f61a9281ecd597a3c51e6725a636390be0d9cc97dc08c37d48f1a7859"
+  },
+  "nodeGroups": [],
+  "id": "h4wiKfEktUoGnzql",
+  "tags": []
+}
