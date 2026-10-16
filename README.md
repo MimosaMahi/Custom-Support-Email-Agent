@@ -3,6 +3,8 @@
 Scenerio: 
 Build a simple AI-powered email customer support agent in n8n that automatically responds to customer inquiries for a travel agency. The agent should handle common questions professionally, ask follow-up questions when necessary, and escalate issues it cannot resolve to a human support team.
 
+Tools Used: n8n
+
 
 ## AI Prompt Used (Using Gemini AI) 
 
